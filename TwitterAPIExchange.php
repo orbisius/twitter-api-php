@@ -191,10 +191,14 @@ class TwitterAPIExchange
 
         $options = array( 
             CURLOPT_HTTPHEADER => $header,
-            CURLOPT_HEADER => false,
+            CURLOPT_HEADER => true,
             CURLOPT_URL => $this->url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => 10,
+            
+            // slavi fix
+            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYPEER => false,
         );
 
         if (!is_null($postfields))
@@ -211,7 +215,22 @@ class TwitterAPIExchange
 
         $feed = curl_init();
         curl_setopt_array($feed, $options);
-        $json = curl_exec($feed);
+        $http_header_and_content = curl_exec($feed);
+        
+        if (!empty($http_header_and_content)) {
+            list ($header, $body) = explode("\r\n\r\n", $http_header_and_content, 2);
+    
+            $this->header = $header;
+            $this->body = $body;
+            $json = $body;
+        }
+        
+        $error = curl_error($feed);
+        
+        if (!empty($error)) { // slavi fix
+            throw new Exception('performRequest: ' . $error);
+        }
+        
         curl_close($feed);
 
         if ($return) { return $json; }
